@@ -1,0 +1,534 @@
+{
+  "datasets": [
+    {
+      "name": "01121845",
+      "displayName": "revenue_trend",
+      "queryLines": [
+        "USE CATALOG day8_catalog;\r\n",
+        "USE SCHEMA ecommerce;\r\n",
+        "\r\n",
+        "WITH daily AS (\r\n",
+        "  SELECT\r\n",
+        "    DATE(event_time) AS event_date,\r\n",
+        "    SUM(price) AS revenue\r\n",
+        "  FROM events_silver\r\n",
+        "  WHERE event_type = 'purchase'\r\n",
+        "  GROUP BY DATE(event_time)\r\n",
+        ")\r\n",
+        "SELECT\r\n",
+        "  event_date,\r\n",
+        "  revenue,\r\n",
+        "  AVG(revenue) OVER (\r\n",
+        "    ORDER BY event_date\r\n",
+        "    ROWS BETWEEN 6 PRECEDING AND CURRENT ROW\r\n",
+        "  ) AS revenue_ma7\r\n",
+        "FROM daily\r\n",
+        "ORDER BY event_date;\r\n"
+      ]
+    },
+    {
+      "name": "fa30517b",
+      "displayName": "conversion_funnel",
+      "queryLines": [
+        "USE CATALOG day8_catalog;\r\n",
+        "USE SCHEMA ecommerce;\r\n",
+        "\r\n",
+        "SELECT\r\n",
+        "  category_code,\r\n",
+        "  SUM(CASE WHEN event_type = 'view' THEN 1 ELSE 0 END) AS views,\r\n",
+        "  SUM(CASE WHEN event_type = 'purchase' THEN 1 ELSE 0 END) AS purchases,\r\n",
+        "  ROUND(\r\n",
+        "    SUM(CASE WHEN event_type = 'purchase' THEN 1 ELSE 0 END) * 100.0 /\r\n",
+        "    NULLIF(SUM(CASE WHEN event_type = 'view' THEN 1 ELSE 0 END), 0),\r\n",
+        "    2\r\n",
+        "  ) AS conversion_rate\r\n",
+        "FROM events_silver\r\n",
+        "GROUP BY category_code;\r\n"
+      ]
+    },
+    {
+      "name": "b12139de",
+      "displayName": "customer_tiers",
+      "queryLines": [
+        "USE CATALOG day8_catalog;\r\n",
+        "USE SCHEMA ecommerce;\r\n",
+        "\r\n",
+        "WITH purchases AS (\r\n",
+        "  SELECT\r\n",
+        "    user_id,\r\n",
+        "    COUNT(*) AS purchase_count,\r\n",
+        "    SUM(price) AS total_spent\r\n",
+        "  FROM events_silver\r\n",
+        "  WHERE event_type = 'purchase'\r\n",
+        "  GROUP BY user_id\r\n",
+        ")\r\n",
+        "SELECT\r\n",
+        "  CASE\r\n",
+        "    WHEN purchase_count >= 10 THEN 'VIP'\r\n",
+        "    WHEN purchase_count >= 5 THEN 'Loyal'\r\n",
+        "    ELSE 'Regular'\r\n",
+        "  END AS customer_tier,\r\n",
+        "  COUNT(*) AS customers,\r\n",
+        "  ROUND(AVG(total_spent), 2) AS avg_ltv\r\n",
+        "FROM purchases\r\n",
+        "GROUP BY customer_tier;\r\n"
+      ]
+    },
+    {
+      "name": "604fd00b",
+      "displayName": "Top Brands by Revenue Insights",
+      "queryLines": [
+        "USE CATALOG day8_catalog;\r\n",
+        "USE SCHEMA ecommerce;\r\n",
+        "\r\n",
+        "SELECT\r\n",
+        "  brand,\r\n",
+        "  SUM(price) AS total_revenue\r\n",
+        "FROM events_silver\r\n",
+        "WHERE event_type = 'purchase'\r\n",
+        "GROUP BY brand\r\n",
+        "ORDER BY total_revenue DESC\r\n",
+        "LIMIT 10;\r\n"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "c4a74249",
+      "displayName": "Untitled page",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "c74b7049",
+      "displayName": "Global Filters",
+      "layout": [
+        {
+          "widget": {
+            "name": "367fd1a0",
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {},
+              "frame": {
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS"
+    },
+    {
+      "name": "7d4fdeda",
+      "displayName": "Untitled page 1",
+      "layout": [
+        {
+          "widget": {
+            "name": "a2069393",
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {},
+              "frame": {
+                "showTitle": false
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 19,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "8cb443de",
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {}
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 13,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "revenue-trend-7-day-moving-average",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "01121845",
+                  "fields": [
+                    {
+                      "name": "monthly(event_date)",
+                      "expression": "DATE_TRUNC(\"MONTH\", `event_date`)"
+                    },
+                    {
+                      "name": "sum(revenue_ma7)",
+                      "expression": "SUM(`revenue_ma7`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "monthly(event_date)",
+                  "displayName": "event_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "sum(revenue_ma7)",
+                      "displayName": "revenue"
+                    },
+                    {
+                      "fieldName": "sum(revenue_ma7)",
+                      "displayName": "revenue_ma7"
+                    }
+                  ]
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Revenue Trend (7-Day Moving Average)\n"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "conversion-rate-by-category",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fa30517b",
+                  "fields": [
+                    {
+                      "name": "category_code",
+                      "expression": "`category_code`"
+                    },
+                    {
+                      "name": "sum(conversion_rate)",
+                      "expression": "SUM(`conversion_rate`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "category_code",
+                  "displayName": "category_code",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(conversion_rate)",
+                  "displayName": "conversion_rate",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Conversion Rate by Category\n"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 1,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "customer-segmentation",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b12139de",
+                  "fields": [
+                    {
+                      "name": "sum(customers)",
+                      "expression": "SUM(`customers`)"
+                    },
+                    {
+                      "name": "customers",
+                      "expression": "`customers`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "sum(customers)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "customers",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": false
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Customer Segmentation\n"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "top-brands-revenue",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "604fd00b",
+                  "fields": [
+                    {
+                      "name": "brand",
+                      "expression": "`brand`"
+                    },
+                    {
+                      "name": "sum(total_revenue)",
+                      "expression": "SUM(`total_revenue`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "brand",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(total_revenue)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Top Brands by Revenue\n"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 7,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "1fa12b7c",
+            "queries": [
+              {
+                "name": "dashboards/01f0f3c5c416134a8c60b3fe4091f282/datasets/01f0f3c6cefd126f90d7139e8ec9e7ca_event_date",
+                "query": {
+                  "datasetName": "01121845",
+                  "fields": [
+                    {
+                      "name": "event_date",
+                      "expression": "`event_date`"
+                    },
+                    {
+                      "name": "event_date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-date-range-picker",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "event_date",
+                    "queryName": "dashboards/01f0f3c5c416134a8c60b3fe4091f282/datasets/01f0f3c6cefd126f90d7139e8ec9e7ca_event_date"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "890778f1",
+            "queries": [
+              {
+                "name": "dashboards/01f0f3c5c416134a8c60b3fe4091f282/datasets/01f0f3c762651ebe9dde621606f9ab7d_category_code",
+                "query": {
+                  "datasetName": "fa30517b",
+                  "fields": [
+                    {
+                      "name": "category_code",
+                      "expression": "`category_code`"
+                    },
+                    {
+                      "name": "category_code_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "category_code",
+                    "queryName": "dashboards/01f0f3c5c416134a8c60b3fe4091f282/datasets/01f0f3c762651ebe9dde621606f9ab7d_category_code"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "44a636b2",
+            "queries": [
+              {
+                "name": "dashboards/01f0f3c5c416134a8c60b3fe4091f282/datasets/01f0f3c8523b1735806a5d7b6e698e0f_brand",
+                "query": {
+                  "datasetName": "604fd00b",
+                  "fields": [
+                    {
+                      "name": "brand",
+                      "expression": "`brand`"
+                    },
+                    {
+                      "name": "brand_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "brand",
+                    "queryName": "dashboards/01f0f3c5c416134a8c60b3fe4091f282/datasets/01f0f3c8523b1735806a5d7b6e698e0f_brand"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
