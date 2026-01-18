@@ -523,6 +523,11 @@
         }
       ],
       "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "e534b414",
+      "displayName": "Untitled page 2",
+      "pageType": "PAGE_TYPE_CANVAS"
     }
   ],
   "uiSettings": {
